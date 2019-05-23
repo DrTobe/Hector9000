@@ -41,6 +41,7 @@ class HectorHardware:
             self.hx.tare()
 
             pcafreq = cfg["pca9685"]["freq"]
+            self.pcafreq = pcafreq
             self.pca = Adafruit_PCA9685.PCA9685()
             self.pca.set_pwm_freq(pcafreq)
             self.valveChannels = cfg["pca9685"]["valvechannels"]
@@ -168,7 +169,9 @@ class HectorHardware:
         print("ch %d, pos %d" % (ch, pos))
 
         if not devEnvironment:
-            self.pca.set_pwm(ch, 0, pos)
+            #self.pca.set_pwm(ch, 0, pos)
+            old_pos = self.valvePositions[index][open]
+            self.servo_sweep(ch, old_pos, pos)
 
     def valve_close(self, index):
         if not devEnvironment:
@@ -231,6 +234,19 @@ class HectorHardware:
         pulse //= pulse_length
         if not devEnvironment:
             self.pca.set_pwm(channel, 0, pulse)
+
+    def servo_sweep(self, channel, current, target):
+        step = 25
+        pause = .01
+        current_us = int(current * 1000)
+        target_us = int(target * 1000)
+        direction = step if target > current else -step
+        sweepvals_us = list(range(current_us, target_us, direction))
+        sweepvals_us.append(target_us)
+        for current in sweepvals_us:
+            value = ms / 1000 / (1/self.pcafreq) * 4096
+            self.pca.set_pwm(channel, 0, int(current/1000))
+            time.sleep(pause)
 
 
 # end class HectorHardware
